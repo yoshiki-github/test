@@ -1,0 +1,110 @@
+/* Reset and Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: Arial, sans-serif;
+    background: #000;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
+/* Game Container */
+.game-container {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #000;
+    overflow: hidden;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.game-wrapper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    max-width: 800px;
+    max-height: 1200px;
+    aspect-ratio: 2 / 3;
+    background: #0a0e27;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+}
+
+/* Canvas */
+#gameCanvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: #0a0e27;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    -ms-touch-action: none;
+    touch-action: none;
+}
+
+/* Mobile Safe Area */
+@supports(padding: max(0px)) {
+    .game-container {
+        padding: env(safe-area-inset-top) env(safe-area-inset-right)
+                 env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+}
+
+/* Portrait Orientation (Mobile Default) */
+@media (orientation: portrait) {
+    .game-wrapper {
+        width: 100%;
+        height: 100%;
+        max-width: 100vw;
+        max-height: 100vh;
+    }
+}
+
+/* Landscape Orientation */
+@media (orientation: landscape) {
+    .game-wrapper {
+        width: 100%;
+        height: 100%;
+        max-width: 100vw;
+        max-height: 100vh;
+    }
+}
+
+/* Prevent iOS zoom on input */
+input, textarea, select {
+    font-size: 16px;
+}
+
+/* Disable text selection during gameplay */
+body {
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    user-select: none;
+}
+
+/* Prevent pull-to-refresh on Android */
+body {
+    overscroll-behavior: none;
+}
+
+/* High DPI Display Support */
+@media (-webkit-min-device-pixel-ratio: 2),
+       (min-resolution: 192dpi) {
+    #gameCanvas {
+        image-rendering: -webkit-optimize-contrast;
+    }
+}
