@@ -1,38 +1,48 @@
 class Enemy {
-    constructor(x, y, speed = ENEMY_SPEED) {
+    constructor(x, y, game) {
         this.x = x;
         this.y = y;
-        this.width = ENEMY_WIDTH;
-        this.height = ENEMY_HEIGHT;
-        this.velocityY = speed;
-        this.speed = speed;
-        this.health = ENEMY_MAX_HEALTH;
-        this.maxHealth = ENEMY_MAX_HEALTH;
+        this.game = game;
+
+        // Dimensions
+        this.width = ENEMY_CONFIG.WIDTH;
+        this.height = ENEMY_CONFIG.HEIGHT;
+
+        // Movement (positive Y = downward)
+        this.velocityY = ENEMY_CONFIG.SPEED;
+
+        // State
+        this.health = ENEMY_CONFIG.MAX_HEALTH;
+        this.type = ENTITY_TYPE.ENEMY;
         this.active = true;
+        this.hitFlash = 0;
     }
 
-    /**
-     * Update enemy position
-     */
     update(deltaTime) {
         this.y += this.velocityY * deltaTime;
-    }
 
-    /**
-     * Take damage
-     */
-    takeDamage(amount) {
-        this.health -= amount;
-        if (this.health <= 0) {
-            this.active = false;
+        // Update hit flash
+        if (this.hitFlash > 0) {
+            this.hitFlash -= deltaTime;
         }
     }
 
-    /**
-     * Get collision bounds
-     */
+    takeDamage(amount) {
+        this.health -= amount;
+        this.hitFlash = 0.1; // Flash for 0.1 seconds
+
+        if (this.health <= 0) {
+            this.active = false;
+            this.game.addScore(SCORING.POINTS_PER_ENEMY);
+        }
+    }
+
     getCollisionBounds() {
         return {
+            left: this.x,
+            top: this.y,
+            right: this.x + this.width,
+            bottom: this.y + this.height,
             x: this.x,
             y: this.y,
             width: this.width,
@@ -40,10 +50,13 @@ class Enemy {
         };
     }
 
-    /**
-     * Check if off-screen
-     */
-    isOffScreen(canvasHeight) {
-        return this.y > canvasHeight;
+    render(ctx) {
+        // Draw with hit flash effect
+        if (this.hitFlash > 0) {
+            ctx.fillStyle = COLORS.ENEMY_HIT;
+        } else {
+            ctx.fillStyle = COLORS.ENEMY;
+        }
+        ctx.fillRect(this.x, this.y, this.width, this.height);
     }
 }

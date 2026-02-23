@@ -2,285 +2,218 @@ class Game {
     constructor(canvasElement) {
         this.canvas = canvasElement;
         this.renderer = new Renderer(canvasElement);
-        this.hud = new HUD(this);
 
         // Game state
         this.gameState = GAME_STATE.MENU;
         this.score = 0;
-        this.playerHealth = PLAYER_MAX_HEALTH;
+        this.playerHealth = PLAYER_CONFIG.MAX_HEALTH;
         this.time = 0;
         this.deltaTime = 0;
-        this.lastFrameTime = 0;
+        this.lastFrameTime = Date.now();
 
         // Entities
         this.player = null;
-        this.bullets = [];
         this.enemies = [];
+        this.bullets = [];
 
-        // Game mechanics
-        this.nextBulletTime = 0;
-        this.nextEnemyTime = 0;
-        this.spawnRate = INITIAL_SPAWN_RATE;
+        // Timing
+        this.spawnTimer = 0;
+        this.currentSpawnRate = ENEMY_CONFIG.SPAWN_RATE;
+        this.difficultyTimer = 0;
 
-        // Input
-        this.controls = null;
-
-        // Game loop
-        this.animationFrameId = null;
-
-        // Initialize
+        // Initialize game
         this.init();
+
+        // Setup input controls
+        this.controls = new Controls(canvasElement, this);
     }
 
-    /**
-     * Initialize the game
-     */
     init() {
         // Create player
-        this.player = new Player(PLAYER_START_X, PLAYER_START_Y);
+        const playerX = (this.renderer.width - PLAYER_CONFIG.WIDTH) / 2;
+        const playerY = this.renderer.height - PLAYER_CONFIG.HEIGHT - 10;
+        this.player = new Player(playerX, playerY, this);
 
-        // Initialize bullet pool
-        this.bullets = [];
-        for (let i = 0; i < MAX_BULLETS; i++) {
-            this.bullets.push(new Bullet(0, 0));
-            this.bullets[i].active = false;
-        }
-
-        // Initialize enemies array
+        // Initialize arrays
         this.enemies = [];
+        this.bullets = [];
 
-        // Set up controls
-        this.controls = new Controls(this.canvas, this.player, this);
-
-        // Reset timing
-        this.lastFrameTime = performance.now();
-        this.nextBulletTime = 0;
-        this.nextEnemyTime = 0;
+        // Reset timers
+        this.spawnTimer = 0;
+        this.difficultyTimer = 0;
+        this.time = 0;
     }
 
-    /**
-     * Start the game
-     */
     start() {
         this.gameState = GAME_STATE.PLAYING;
         this.score = 0;
-        this.playerHealth = PLAYER_MAX_HEALTH;
-        this.time = 0;
-        this.enemies = [];
-        this.spawnRate = INITIAL_SPAWN_RATE;
-        this.nextBulletTime = 0;
-        this.nextEnemyTime = 0;
-
-        // Reset player position
-        this.player.x = PLAYER_START_X;
-        this.player.y = PLAYER_START_Y;
-        this.player.velocityX = 0;
-
-        this.update(0);
+        this.playerHealth = PLAYER_CONFIG.MAX_HEALTH;
+        this.init();
+        this.updateHUD();
     }
 
-    /**
-     * Update game state
-     */
     update(deltaTime) {
         if (this.gameState !== GAME_STATE.PLAYING) {
             return;
         }
 
-        this.deltaTime = deltaTime;
-        this.time += deltaTime;
+        this.deltaTime = Math.min(deltaTime, 0.016); // Cap at 60 FPS equivalent
+        this.time += this.deltaTime;
 
         // Update player
         if (this.player) {
-            this.player.update(deltaTime);
-            this.player.applyBoundaryCheck(
-                0, 0,
-                this.renderer.width - PLAYER_WIDTH,
-                this.renderer.height
-            );
-        }
-
-        // Auto shoot
-        this.nextBulletTime -= deltaTime;
-        if (this.nextBulletTime <= 0) {
-            this.playerShoot();
-            this.nextBulletTime = BULLET_FIRE_RATE;
+            this.player.update(this.deltaTime);
         }
 
         // Update bullets
         for (let i = this.bullets.length - 1; i >= 0; i--) {
-            let bullet = this.bullets[i];
-            if (bullet.active) {
-                bullet.update(deltaTime);
+            this.bullets[i].update(this.deltaTime);
 
-                // Remove bullets that are off-screen
-                if (bullet.y + bullet.height < 0) {
-                    bullet.active = false;
-                }
+            // Remove off-screen bullets
+            if (this.bullets[i].y < -BULLET_CONFIG.HEIGHT) {
+                this.bullets.splice(i, 1);
+            }
+        }
+
+        // Update enemies
+        for (let i = this.enemies.length - 1; i >= 0; i--) {
+            this.enemies[i].update(this.deltaTime);
+
+            // Remove off-screen enemies
+            if (this.enemies[i].y > this.renderer.height + ENEMY_CONFIG.HEIGHT) {
+                // Enemy escaped, deal damage
+                this.damagePlayer(SCORING.ENEMY_COLLISION_DAMAGE);
+                this.enemies.splice(i, 1);
             }
         }
 
         // Spawn enemies
-        this.nextEnemyTime -= deltaTime;
-        if (this.nextEnemyTime <= 0) {
+        this.spawnTimer += this.deltaTime;
+        const spawnInterval = 1 / this.currentSpawnRate;
+        if (this.spawnTimer >= spawnInterval) {
             this.spawnEnemy();
-            this.nextEnemyTime = 1 / this.spawnRate;
-        }
-
-        // Update difficulty
-        this.updateDifficulty();
-
-        // Update enemies
-        for (let i = this.enemies.length - 1; i >= 0; i--) {
-            let enemy = this.enemies[i];
-            if (enemy.active !== false) {
-                enemy.update(deltaTime);
-
-                // Remove enemies that are off-screen
-                if (enemy.y > this.renderer.height) {
-                    this.enemies.splice(i, 1);
-                }
-            }
+            this.spawnTimer -= spawnInterval;
         }
 
         // Check collisions
-        if (CollisionSystem) {
-            CollisionSystem.checkCollisions(this);
+        this.checkCollisions();
+
+        // Difficulty progression
+        this.difficultyTimer += this.deltaTime;
+        if (this.difficultyTimer >= DIFFICULTY.DIFFICULTY_INCREASE_INTERVAL / 1000) {
+            this.increaseDifficulty();
+            this.difficultyTimer = 0;
         }
 
-        // Check game over condition
+        // Check game over
         if (this.playerHealth <= 0) {
-            this.gameState = GAME_STATE.GAME_OVER;
+            this.gameOver();
         }
     }
 
-    /**
-     * Render the game
-     */
     render() {
         this.renderer.render(this);
-        this.hud.render(this.renderer.ctx, this);
     }
 
-    /**
-     * Game loop handler
-     */
-    handleGameLoop = (currentTime) => {
-        if (this.lastFrameTime === 0) {
-            this.lastFrameTime = currentTime;
-        }
+    gameLoop = () => {
+        const now = Date.now();
+        const deltaTime = (now - this.lastFrameTime) / 1000;
+        this.lastFrameTime = now;
 
-        const deltaTime = (currentTime - this.lastFrameTime) / 1000; // Convert to seconds
-        this.lastFrameTime = currentTime;
-
-        // Cap delta time to prevent large jumps
-        const cappedDeltaTime = Math.min(deltaTime, 1 / 30); // Max 33ms per frame
-
-        this.update(cappedDeltaTime);
+        this.update(deltaTime);
         this.render();
 
-        this.animationFrameId = requestAnimationFrame(this.handleGameLoop);
+        requestAnimationFrame(this.gameLoop);
+    };
+
+    startGameLoop() {
+        this.lastFrameTime = Date.now();
+        requestAnimationFrame(this.gameLoop);
     }
 
-    /**
-     * Start the game loop
-     */
-    startLoop() {
-        this.animationFrameId = requestAnimationFrame(this.handleGameLoop);
-    }
-
-    /**
-     * Stop the game loop
-     */
-    stopLoop() {
-        if (this.animationFrameId) {
-            cancelAnimationFrame(this.animationFrameId);
-            this.animationFrameId = null;
-        }
-    }
-
-    /**
-     * Player shoots a bullet
-     */
-    playerShoot() {
-        // Find an inactive bullet from the pool
-        for (let bullet of this.bullets) {
-            if (!bullet.active) {
-                bullet.fire(
-                    this.player.x + PLAYER_WIDTH / 2 - BULLET_WIDTH / 2,
-                    this.player.y
-                );
-                break;
-            }
-        }
-    }
-
-    /**
-     * Spawn a new enemy
-     */
     spawnEnemy() {
-        const x = Math.random() * (this.renderer.width - ENEMY_WIDTH);
-        const y = -ENEMY_HEIGHT - 10;
-        const enemy = new Enemy(x, y, ENEMY_SPEED);
+        const randomX = Math.random() * (this.renderer.width - ENEMY_CONFIG.WIDTH);
+        const enemy = new Enemy(randomX, -ENEMY_CONFIG.HEIGHT, this);
         this.enemies.push(enemy);
     }
 
-    /**
-     * Update difficulty based on time and score
-     */
-    updateDifficulty() {
-        // Increase spawn rate every 10 seconds
-        const newSpawnRate = INITIAL_SPAWN_RATE + (Math.floor(this.time / 10) * SPAWN_RATE_INCREASE);
-        this.spawnRate = Math.min(newSpawnRate, 2); // Cap at 2 enemies per second
-
-        // Could also increase enemy speed here
+    checkCollisions() {
+        const collisionSystem = new CollisionSystem();
+        collisionSystem.checkCollisions(this);
     }
 
-    /**
-     * Add points to score
-     */
+    addBullet(bullet) {
+        if (this.bullets.length < BULLET_CONFIG.MAX_BULLETS) {
+            this.bullets.push(bullet);
+        }
+    }
+
     addScore(points) {
         this.score += points;
+        this.updateHUD();
+        this.checkDifficultyByScore();
     }
 
-    /**
-     * Damage the player
-     */
     damagePlayer(amount) {
         this.playerHealth -= amount;
-        if (this.playerHealth < 0) {
-            this.playerHealth = 0;
+        this.updateHUD();
+
+        if (this.playerHealth <= 0) {
+            this.gameOver();
         }
     }
 
-    /**
-     * Get game over status
-     */
-    isGameOver() {
-        return this.gameState === GAME_STATE.GAME_OVER;
+    gameOver() {
+        if (this.gameState === GAME_STATE.GAME_OVER) {
+            return;
+        }
+
+        this.gameState = GAME_STATE.GAME_OVER;
+        this.showGameOver();
     }
 
-    /**
-     * Reset game state for menu
-     */
-    resetToMenu() {
-        this.gameState = GAME_STATE.MENU;
-        this.score = 0;
-        this.playerHealth = PLAYER_MAX_HEALTH;
-        this.time = 0;
-        this.enemies = [];
-        this.spawnRate = INITIAL_SPAWN_RATE;
+    reset() {
+        this.start();
+        this.updateHUD();
+    }
 
-        // Clear bullets
-        for (let bullet of this.bullets) {
-            bullet.active = false;
-        }
+    increaseDifficulty() {
+        const increase = DIFFICULTY.SPAWN_RATE_INCREASE / 1000;
+        this.currentSpawnRate = Math.min(
+            this.currentSpawnRate + increase,
+            DIFFICULTY.MAX_SPAWN_RATE
+        );
+    }
 
-        // Reset player
-        if (this.player) {
-            this.player.x = PLAYER_START_X;
-            this.player.y = PLAYER_START_Y;
-            this.player.velocityX = 0;
-        }
+    checkDifficultyByScore() {
+        // Increase spawn rate based on score
+        const scoreIncrease = Math.floor(this.score / 50) * DIFFICULTY.SCORE_SPAWN_INCREASE / 1000;
+        const totalIncrease = scoreIncrease;
+        this.currentSpawnRate = Math.min(
+            ENEMY_CONFIG.SPAWN_RATE + totalIncrease,
+            DIFFICULTY.MAX_SPAWN_RATE
+        );
+    }
+
+    updateHUD() {
+        document.getElementById('score').textContent = `スコア: ${this.score}`;
+        document.getElementById('healthValue').textContent = this.playerHealth;
+    }
+
+    showGameOver() {
+        document.getElementById('finalScore').textContent = `Score: ${this.score}`;
+        document.getElementById('gameOverScreen').classList.remove('hidden');
+    }
+
+    hideGameOver() {
+        document.getElementById('gameOverScreen').classList.add('hidden');
+    }
+
+    hideMenu() {
+        document.getElementById('menuScreen').classList.add('hidden');
+    }
+
+    showMenu() {
+        document.getElementById('menuScreen').classList.remove('hidden');
     }
 }

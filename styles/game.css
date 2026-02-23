@@ -1,4 +1,3 @@
-/* Reset and Base Styles */
 * {
     margin: 0;
     padding: 0;
@@ -8,103 +7,176 @@
 html, body {
     width: 100%;
     height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #000;
+    color: #fff;
     overflow: hidden;
-    font-family: Arial, sans-serif;
-    background: #000;
     touch-action: none;
-    user-select: none;
-    -webkit-user-select: none;
-    -webkit-touch-callout: none;
 }
 
-/* Game Container */
 .game-container {
     width: 100vw;
     height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
-    background: #000;
-    overflow: hidden;
-    position: fixed;
+    background-color: #000;
+    position: relative;
+}
+
+canvas {
+    display: block;
+    max-width: 100vw;
+    max-height: 100vh;
+    width: auto;
+    height: auto;
+    background-color: #1a1a1a;
+    border: none;
+}
+
+.ui-overlay {
+    position: absolute;
     top: 0;
     left: 0;
-    right: 0;
-    bottom: 0;
-}
-
-.game-wrapper {
-    position: relative;
     width: 100%;
     height: 100%;
-    max-width: 800px;
-    max-height: 1200px;
-    aspect-ratio: 2 / 3;
-    background: #0a0e27;
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
 }
 
-/* Canvas */
-#gameCanvas {
-    display: block;
+.screen {
+    position: absolute;
     width: 100%;
     height: 100%;
-    background: #0a0e27;
-    image-rendering: pixelated;
-    image-rendering: crisp-edges;
-    -ms-touch-action: none;
-    touch-action: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 100;
+    pointer-events: auto;
+    transition: opacity 0.3s ease;
 }
 
-/* Mobile Safe Area */
-@supports(padding: max(0px)) {
-    .game-container {
-        padding: env(safe-area-inset-top) env(safe-area-inset-right)
-                 env(safe-area-inset-bottom) env(safe-area-inset-left);
+.screen.hidden {
+    display: none;
+    pointer-events: none;
+}
+
+.screen h1 {
+    font-size: 3rem;
+    margin-bottom: 2rem;
+    color: #4af;
+    text-shadow: 0 0 10px rgba(68, 170, 255, 0.5);
+}
+
+.screen.menu-screen {
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.95), rgba(20, 40, 60, 0.9));
+}
+
+.screen.game-over-screen {
+    background: linear-gradient(135deg, rgba(60, 0, 0, 0.95), rgba(20, 0, 0, 0.9));
+}
+
+.score-display {
+    font-size: 2rem;
+    margin-bottom: 2rem;
+    color: #ff4444;
+    font-weight: bold;
+}
+
+.btn {
+    padding: 1rem 2rem;
+    font-size: 1.2rem;
+    border: none;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    pointer-events: auto;
+}
+
+.btn-primary {
+    background-color: #4af;
+    color: #000;
+    font-weight: bold;
+    box-shadow: 0 0 10px rgba(68, 170, 255, 0.5);
+}
+
+.btn-primary:hover {
+    background-color: #6cf;
+    box-shadow: 0 0 20px rgba(68, 170, 255, 0.8);
+    transform: scale(1.05);
+}
+
+.btn-primary:active {
+    transform: scale(0.95);
+}
+
+.hud {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    right: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 1.2rem;
+    z-index: 50;
+    pointer-events: none;
+    text-shadow: 0 0 5px rgba(0, 0, 0, 0.8);
+}
+
+.hud-item {
+    background: rgba(0, 0, 0, 0.5);
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid #4af;
+}
+
+#score {
+    color: #4af;
+}
+
+#health {
+    color: #f44;
+}
+
+#healthValue {
+    font-weight: bold;
+    color: #f44;
+}
+
+@media (max-width: 480px) {
+    .screen h1 {
+        font-size: 2rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .btn {
+        padding: 0.8rem 1.6rem;
+        font-size: 1rem;
+    }
+
+    .hud {
+        top: 10px;
+        left: 10px;
+        right: 10px;
+        font-size: 1rem;
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: flex-start;
+    }
+
+    .hud-item {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.9rem;
     }
 }
 
-/* Portrait Orientation (Mobile Default) */
-@media (orientation: portrait) {
-    .game-wrapper {
-        width: 100%;
-        height: 100%;
-        max-width: 100vw;
-        max-height: 100vh;
-    }
-}
-
-/* Landscape Orientation */
 @media (orientation: landscape) {
-    .game-wrapper {
-        width: 100%;
-        height: 100%;
-        max-width: 100vw;
-        max-height: 100vh;
-    }
-}
-
-/* Prevent iOS zoom on input */
-input, textarea, select {
-    font-size: 16px;
-}
-
-/* Disable text selection during gameplay */
-body {
-    -webkit-user-select: none;
-    -webkit-touch-callout: none;
-    user-select: none;
-}
-
-/* Prevent pull-to-refresh on Android */
-body {
-    overscroll-behavior: none;
-}
-
-/* High DPI Display Support */
-@media (-webkit-min-device-pixel-ratio: 2),
-       (min-resolution: 192dpi) {
-    #gameCanvas {
-        image-rendering: -webkit-optimize-contrast;
+    .hud {
+        flex-direction: row;
     }
 }

@@ -1,47 +1,36 @@
 class Bullet {
-    constructor(x, y) {
+    constructor(x, y, game) {
         this.x = x;
         this.y = y;
-        this.width = BULLET_WIDTH;
-        this.height = BULLET_HEIGHT;
-        this.velocityY = -BULLET_SPEED; // Upward
-        this.speed = BULLET_SPEED;
-        this.active = false;
-    }
+        this.game = game;
 
-    /**
-     * Fire a bullet from position
-     */
-    fire(x, y) {
-        this.x = x;
-        this.y = y;
-        this.velocityY = -this.speed;
+        // Dimensions
+        this.width = BULLET_CONFIG.WIDTH;
+        this.height = BULLET_CONFIG.HEIGHT;
+
+        // Movement (negative Y = upward)
+        this.velocityY = -BULLET_CONFIG.SPEED;
+
+        // State
         this.active = true;
+        this.type = ENTITY_TYPE.BULLET;
     }
 
-    /**
-     * Update bullet position
-     */
     update(deltaTime) {
-        if (!this.active) {
-            return;
-        }
-
         this.y += this.velocityY * deltaTime;
+
+        // Deactivate if off-screen
+        if (this.y < -this.height) {
+            this.active = false;
+        }
     }
 
-    /**
-     * Check if bullet is off-screen
-     */
-    isOffScreen(canvasHeight) {
-        return this.y + this.height < 0 || this.y > canvasHeight;
-    }
-
-    /**
-     * Get collision bounds
-     */
     getCollisionBounds() {
         return {
+            left: this.x,
+            top: this.y,
+            right: this.x + this.width,
+            bottom: this.y + this.height,
             x: this.x,
             y: this.y,
             width: this.width,
@@ -49,10 +38,12 @@ class Bullet {
         };
     }
 
-    /**
-     * Deactivate bullet
-     */
-    deactivate() {
-        this.active = false;
+    isOffScreen(canvasHeight) {
+        return this.y < -this.height || this.y > canvasHeight;
+    }
+
+    render(ctx) {
+        ctx.fillStyle = COLORS.BULLET;
+        ctx.fillRect(this.x, this.y, this.width, this.height);
     }
 }

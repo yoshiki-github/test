@@ -2,29 +2,41 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#000">
+    <meta name="theme-color" content="#000000">
     <title>Mobile Shooting Game</title>
     <link rel="stylesheet" href="styles/game.css">
 </head>
 <body>
     <div class="game-container">
-        <div class="game-wrapper">
-            <canvas id="gameCanvas"></canvas>
+        <canvas id="gameCanvas"></canvas>
+        <div id="gameUI" class="ui-overlay">
+            <div id="menuScreen" class="screen menu-screen active">
+                <h1>Shooting Game</h1>
+                <button id="startButton" class="btn btn-primary">ゲーム開始</button>
+            </div>
+            <div id="gameOverScreen" class="screen game-over-screen hidden">
+                <h1>Game Over</h1>
+                <div id="finalScore" class="score-display">Score: 0</div>
+                <button id="restartButton" class="btn btn-primary">もう一度プレイ</button>
+            </div>
+            <div id="hud" class="hud">
+                <div id="score" class="hud-item">スコア: 0</div>
+                <div id="health" class="hud-item">HP: <span id="healthValue">3</span>/3</div>
+            </div>
         </div>
     </div>
 
-    <!-- Scripts -->
     <script src="src/constants.js"></script>
     <script src="src/systems/renderer.js"></script>
+    <script src="src/entities/player.js"></script>
     <script src="src/entities/bullet.js"></script>
     <script src="src/entities/enemy.js"></script>
-    <script src="src/entities/player.js"></script>
-    <script src="src/input/controls.js"></script>
     <script src="src/systems/physics.js"></script>
     <script src="src/systems/collision.js"></script>
+    <script src="src/input/controls.js"></script>
     <script src="src/ui/hud.js"></script>
     <script src="src/game.js"></script>
     <script src="src/main.js"></script>

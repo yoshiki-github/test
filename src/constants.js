@@ -1,38 +1,10 @@
-// Game Constants Configuration
-
-// Canvas
-const CANVAS_WIDTH = 400;
-const CANVAS_HEIGHT = 600;
-const MAX_CANVAS_WIDTH = 800;
-const MAX_CANVAS_HEIGHT = 1200;
-
-// Player
-const PLAYER_WIDTH = 40;
-const PLAYER_HEIGHT = 50;
-const PLAYER_SPEED = 400; // pixels per second
-const PLAYER_START_X = CANVAS_WIDTH / 2 - PLAYER_WIDTH / 2;
-const PLAYER_START_Y = CANVAS_HEIGHT - PLAYER_HEIGHT - 10;
-const PLAYER_MAX_HEALTH = 3;
-
-// Bullet
-const BULLET_WIDTH = 5;
-const BULLET_HEIGHT = 15;
-const BULLET_SPEED = 600; // pixels per second (upward)
-const MAX_BULLETS = 100;
-const BULLET_FIRE_RATE = 0.1; // seconds between bullets
-
-// Enemy
-const ENEMY_WIDTH = 40;
-const ENEMY_HEIGHT = 40;
-const ENEMY_SPEED = 150; // pixels per second (downward)
-const ENEMY_MAX_HEALTH = 1;
-const INITIAL_SPAWN_RATE = 0.67; // enemies per second
-const MAX_ENEMIES = 50;
-const SPAWN_RATE_INCREASE = 0.1; // enemies/second per 10 seconds
-
-// Scoring
-const POINTS_PER_ENEMY = 10;
-const ENEMY_COLLISION_DAMAGE = 1;
+// Canvas Configuration
+const CANVAS_CONFIG = {
+    BASE_WIDTH: 400,
+    BASE_HEIGHT: 600,
+    MAX_WIDTH: 800,
+    BACKGROUND_COLOR: '#1a1a1a'
+};
 
 // Game States
 const GAME_STATE = {
@@ -42,16 +14,65 @@ const GAME_STATE = {
     GAME_OVER: 'gameOver'
 };
 
-// Colors
-const COLORS = {
-    PLAYER: '#00ff00',
-    ENEMY: '#ff0000',
-    BULLET: '#ffff00',
-    BACKGROUND: '#0a0e27',
-    UI_TEXT: '#ffffff',
-    UI_HEALTH: '#ff6600'
+// Player Configuration
+const PLAYER_CONFIG = {
+    WIDTH: 40,
+    HEIGHT: 50,
+    SPEED: 400,  // pixels per second
+    MAX_HEALTH: 3,
+    COLOR: '#4af'
 };
 
-// Physics
-const GRAVITY = 0; // No gravity for arcade feel
-const FRICTION = 1; // No friction for arcade feel
+// Bullet Configuration
+const BULLET_CONFIG = {
+    WIDTH: 5,
+    HEIGHT: 15,
+    SPEED: 600,  // pixels per second
+    MAX_BULLETS: 100,
+    COLOR: '#ff4',
+    FIRE_RATE: 0.15  // seconds between shots
+};
+
+// Enemy Configuration
+const ENEMY_CONFIG = {
+    WIDTH: 40,
+    HEIGHT: 40,
+    SPEED: 150,  // pixels per second
+    MAX_HEALTH: 1,
+    COLOR: '#f44',
+    SPAWN_RATE: 0.67,  // enemies per second (1 per 1.5 seconds)
+    MAX_ENEMIES: 50
+};
+
+// Scoring
+const SCORING = {
+    POINTS_PER_ENEMY: 10,
+    ENEMY_COLLISION_DAMAGE: 1
+};
+
+// Difficulty Progression
+const DIFFICULTY = {
+    SPAWN_RATE_INCREASE: 0.1,  // per 10 seconds
+    SCORE_SPAWN_INCREASE: 0.05,  // per 50 points
+    DIFFICULTY_INCREASE_INTERVAL: 10000,  // 10 seconds in ms
+    MAX_SPAWN_RATE: 2.0  // enemies per second (1 per 0.5 seconds)
+};
+
+// Colors
+const COLORS = {
+    BACKGROUND: '#1a1a1a',
+    PLAYER: '#4af',
+    BULLET: '#ff4',
+    ENEMY: '#f44',
+    PLAYER_HIT: '#ff8844',
+    ENEMY_HIT: '#ffff44',
+    TEXT: '#fff',
+    TEXT_SHADOW: 'rgba(0, 0, 0, 0.8)'
+};
+
+// Entity Type Constants
+const ENTITY_TYPE = {
+    PLAYER: 'player',
+    ENEMY: 'enemy',
+    BULLET: 'bullet'
+};
