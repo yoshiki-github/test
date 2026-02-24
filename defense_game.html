@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>防衛ストラテジーゲーム</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Arial', sans-serif;
+            padding: 10px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            background: #34495e;
+            color: white;
+            padding: 12px;
+            font-size: 16px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            background: linear-gradient(180deg, #87ceeb 0%, #e0f6ff 100%);
+            touch-action: none;
+        }
+
+        .controls {
+            background: #2c3e50;
+            padding: 15px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .info {
+            background: #ecf0f1;
+            padding: 15px;
+            font-size: 14px;
+            color: #2c3e50;
+            line-height: 1.6;
+        }
+
+        .game-over {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .game-over-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .game-over-content h2 {
+            font-size: 32px;
+            color: #e74c3c;
+            margin-bottom: 20px;
+        }
+
+        .game-over-content p {
+            font-size: 20px;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .game-over-content button {
+            margin-top: 20px;
+            background: #27ae60;
+        }
+
+        .game-over-content button:hover {
+            background: #229954;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">🛡️ 防衛ゲーム</div>
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-label">スコア</div>
+                <div class="stat-value" id="score">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">HP</div>
+                <div class="stat-value" id="hp">100</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Wave</div>
+                <div class="stat-value" id="wave">1</div>
+            </div>
+        </div>
+        <canvas id="gameCanvas" width="480" height="640"></canvas>
+        <div class="controls">
+            <button id="pauseBtn">一時停止</button>
+            <button id="restartBtn">リスタート</button>
+        </div>
+        <div class="info">
+            📱 タップ/クリックでタレットを配置して敵を倒そう！<br>
+            💡 敵を倒すとスコアが増えます。基地を守り抜け！
+        </div>
+    </div>
+
+    <div class="game-over" id="gameOverScreen">
+        <div class="game-over-content">
+            <h2>ゲームオーバー</h2>
+            <p id="finalScore">最終スコア: 0</p>
+            <p id="waveReached">到達Wave: 1</p>
+            <button onclick="location.reload()">もう一度プレイ</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // ゲーム状態
+        let gameState = {
+            score: 0,
+            hp: 100,
+            maxHp: 100,
+            wave: 1,
+            isPaused: false,
+            gameOver: false,
+            money: 100
+        };
+
+        // ゲームオブジェクト
+        let base = { x: canvas.width / 2, y: canvas.height - 50, radius: 30, hp: 100 };
+        let towers = [];
+        let enemies = [];
+        let projectiles = [];
+        let particles = [];
+
+        const TOWER_COST = 50;
+        const TOWER_RANGE = 120;
+        const TOWER_DAMAGE = 20;
+
+        // タレットクラス
+        class Tower {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.radius = 15;
+                this.range = TOWER_RANGE;
+                this.damage = TOWER_DAMAGE;
+                this.fireRate = 0.2;
+                this.cooldown = 0;
+                this.color = '#f39c12';
+            }
+
+            update() {
+                this.cooldown -= 1/60;
+                if (this.cooldown < 0) this.cooldown = 0;
+
+                let target = null;
+                let minDist = this.range;
+
+                for (let enemy of enemies) {
+                    let dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        target = enemy;
+                    }
+                }
+
+                if (target && this.cooldown <= 0) {
+                    this.fire(target);
+                    this.cooldown = this.fireRate;
+                }
+            }
+
+            fire(target) {
+                projectiles.push(new Projectile(this.x, this.y, target, this.damage));
+            }
+
+            draw() {
+                // タレット本体
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // レンジ表示
+                if (this.cooldown > 0) {
+                    ctx.strokeStyle = 'rgba(243, 156, 18, 0.3)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.range, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            }
+        }
+
+        // 敵クラス
+        class Enemy {
+            constructor(wave) {
+                this.x = Math.random() * (canvas.width - 40) + 20;
+                this.y = -30;
+                this.vx = (Math.random() - 0.5) * 2;
+                this.vy = 1 + wave * 0.3;
+                this.radius = 12;
+                this.hp = 30 + wave * 10;
+                this.maxHp = this.hp;
+                this.color = '#e74c3c';
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // 画面端での反射
+                if (this.x - this.radius < 0 || this.x + this.radius > canvas.width) {
+                    this.vx *= -1;
+                }
+            }
+
+            draw() {
+                // 敵
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // HP表示
+                let hpPercent = this.hp / this.maxHp;
+                ctx.fillStyle = hpPercent > 0.5 ? '#2ecc71' : hpPercent > 0.2 ? '#f39c12' : '#e74c3c';
+                ctx.fillRect(this.x - this.radius, this.y - this.radius - 8, this.radius * 2 * hpPercent, 4);
+            }
+        }
+
+        // 弾クラス
+        class Projectile {
+            constructor(x, y, target, damage) {
+                this.x = x;
+                this.y = y;
+                this.target = target;
+                this.damage = damage;
+                this.speed = 5;
+                this.radius = 5;
+            }
+
+            update() {
+                if (!this.target || this.target.hp <= 0) {
+                    this.target = null;
+                    return;
+                }
+
+                let dx = this.target.x - this.x;
+                let dy = this.target.y - this.y;
+                let dist = Math.hypot(dx, dy);
+
+                if (dist < this.speed) {
+                    this.target.hp -= this.damage;
+                    createExplosion(this.x, this.y);
+                    this.target = null;
+                } else {
+                    this.x += (dx / dist) * this.speed;
+                    this.y += (dy / dist) * this.speed;
+                }
+            }
+
+            draw() {
+                if (this.target) {
+                    ctx.strokeStyle = '#fff200';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, this.y);
+                    ctx.lineTo(this.target.x, this.target.y);
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#fff200';
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        // パーティクルクラス
+        class Particle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 4;
+                this.vy = (Math.random() - 0.5) * 4;
+                this.life = 0.5;
+                this.color = `hsl(${Math.random() * 60 + 30}, 100%, 50%)`;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += 0.1;
+                this.life -= 1/60;
+            }
+
+            draw() {
+                ctx.globalAlpha = this.life * 2;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        function createExplosion(x, y) {
+            for (let i = 0; i < 8; i++) {
+                particles.push(new Particle(x, y));
+            }
+        }
+
+        // イベントリスナー
+        canvas.addEventListener('click', (e) => {
+            if (gameState.gameOver || gameState.isPaused) return;
+            let rect = canvas.getBoundingClientRect();
+            let x = (e.clientX - rect.left) * (canvas.width / rect.width);
+            let y = (e.clientY - rect.top) * (canvas.height / rect.height);
+            placeTower(x, y);
+        });
+
+        canvas.addEventListener('touchstart', (e) => {
+            if (gameState.gameOver || gameState.isPaused) return;
+            e.preventDefault();
+            let rect = canvas.getBoundingClientRect();
+            let touch = e.touches[0];
+            let x = (touch.clientX - rect.left) * (canvas.width / rect.width);
+            let y = (touch.clientY - rect.top) * (canvas.height / rect.height);
+            placeTower(x, y);
+        });
+
+        function placeTower(x, y) {
+            if (gameState.money >= TOWER_COST) {
+                towers.push(new Tower(x, y));
+                gameState.money -= TOWER_COST;
+            }
+        }
+
+        document.getElementById('pauseBtn').addEventListener('click', () => {
+            gameState.isPaused = !gameState.isPaused;
+            document.getElementById('pauseBtn').textContent = gameState.isPaused ? '再開' : '一時停止';
+        });
+
+        document.getElementById('restartBtn').addEventListener('click', () => {
+            location.reload();
+        });
+
+        // 敵の波
+        let waveTimer = 0;
+        let waveEnemyCount = 3;
+        let waveEnemySpawned = 0;
+
+        function spawnWave() {
+            if (waveEnemySpawned < waveEnemyCount) {
+                enemies.push(new Enemy(gameState.wave));
+                waveEnemySpawned++;
+            } else if (enemies.length === 0) {
+                gameState.wave++;
+                waveEnemyCount = Math.floor(3 + gameState.wave * 1.5);
+                waveEnemySpawned = 0;
+                gameState.money += 30;
+            }
+        }
+
+        // ゲームループ
+        function update() {
+            if (gameState.isPaused) return;
+
+            // 敵のスポーン
+            waveTimer++;
+            if (waveTimer > 120) {
+                spawnWave();
+                waveTimer = 0;
+            }
+
+            // タレットの更新
+            for (let tower of towers) {
+                tower.update();
+            }
+
+            // 敵の更新
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                enemies[i].update();
+
+                // 敵が基地に到達
+                if (enemies[i].y > canvas.height - 60) {
+                    gameState.hp -= 10;
+                    enemies.splice(i, 1);
+                } else if (enemies[i].hp <= 0) {
+                    gameState.score += 10;
+                    gameState.money += 10;
+                    createExplosion(enemies[i].x, enemies[i].y);
+                    enemies.splice(i, 1);
+                }
+            }
+
+            // 弾の更新
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                projectiles[i].update();
+                if (!projectiles[i].target) {
+                    projectiles.splice(i, 1);
+                }
+            }
+
+            // パーティクルの更新
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                if (particles[i].life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            // ゲームオーバー判定
+            if (gameState.hp <= 0) {
+                gameState.gameOver = true;
+                document.getElementById('gameOverScreen').style.display = 'flex';
+                document.getElementById('finalScore').textContent = `最終スコア: ${gameState.score}`;
+                document.getElementById('waveReached').textContent = `到達Wave: ${gameState.wave}`;
+            }
+
+            // UI更新
+            document.getElementById('score').textContent = gameState.score;
+            document.getElementById('hp').textContent = gameState.hp;
+            document.getElementById('wave').textContent = gameState.wave;
+        }
+
+        function draw() {
+            // 背景
+            ctx.fillStyle = 'rgba(135, 206, 235, 0.8)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // グリッド
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < canvas.width; i += 40) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i, canvas.height);
+                ctx.stroke();
+            }
+            for (let i = 0; i < canvas.height; i += 40) {
+                ctx.beginPath();
+                ctx.moveTo(0, i);
+                ctx.lineTo(canvas.width, i);
+                ctx.stroke();
+            }
+
+            // 敵の描画
+            for (let enemy of enemies) {
+                enemy.draw();
+            }
+
+            // タレットの描画
+            for (let tower of towers) {
+                tower.draw();
+            }
+
+            // 弾の描画
+            for (let projectile of projectiles) {
+                projectile.draw();
+            }
+
+            // パーティクルの描画
+            for (let particle of particles) {
+                particle.draw();
+            }
+
+            // 基地の描画
+            ctx.fillStyle = '#27ae60';
+            ctx.beginPath();
+            ctx.arc(base.x, base.y, base.radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 基地の枠
+            ctx.strokeStyle = '#229954';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(base.x, base.y, base.radius + 5, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // 基地のビーム
+            ctx.strokeStyle = 'rgba(39, 174, 96, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(base.x, base.y, base.radius + 15, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // お金表示
+            ctx.fillStyle = '#2c3e50';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText(`💰 ${gameState.money}`, 10, 30);
+
+            // ポーズ表示
+            if (gameState.isPaused) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 40px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('一時停止中', canvas.width / 2, canvas.height / 2);
+            }
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>
