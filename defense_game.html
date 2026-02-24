@@ -173,8 +173,9 @@
             <button id="restartBtn">リスタート</button>
         </div>
         <div class="info">
-            📱 タップ/クリックでタレットを配置して敵を倒そう！<br>
-            💡 敵を倒すとスコアが増えます。基地を守り抜け！
+            📱 <strong>タップ/クリック</strong>: タレット配置（50円）<br>
+            🔧 <strong>右クリック/長押し</strong>: タレットレベルアップ（30円）<br>
+            💡 敵を倒すとスコア＆お金獲得。基地を守り抜け！
         </div>
     </div>
 
@@ -199,7 +200,8 @@
             wave: 1,
             isPaused: false,
             gameOver: false,
-            money: 100
+            money: 100,
+            selectedTower: null
         };
 
         // ゲームオブジェクト
@@ -212,6 +214,7 @@
         const TOWER_COST = 50;
         const TOWER_RANGE = 120;
         const TOWER_DAMAGE = 20;
+        const TOWER_UPGRADE_COST = 30;
 
         // タレットクラス
         class Tower {
@@ -219,11 +222,27 @@
                 this.x = x;
                 this.y = y;
                 this.radius = 15;
-                this.range = TOWER_RANGE;
-                this.damage = TOWER_DAMAGE;
-                this.fireRate = 0.2;
+                this.level = 1;
+                this.updateStats();
                 this.cooldown = 0;
-                this.color = '#f39c12';
+                this.isSelected = false;
+            }
+
+            updateStats() {
+                this.range = TOWER_RANGE + this.level * 15;
+                this.damage = TOWER_DAMAGE + this.level * 8;
+                this.fireRate = 0.2 - this.level * 0.02;
+                this.color = ['#f39c12', '#e67e22', '#e74c3c', '#c0392b', '#8b0000'][Math.min(this.level - 1, 4)];
+            }
+
+            upgrade() {
+                if (gameState.money >= TOWER_UPGRADE_COST) {
+                    this.level++;
+                    this.updateStats();
+                    gameState.money -= TOWER_UPGRADE_COST;
+                    return true;
+                }
+                return false;
             }
 
             update() {
@@ -258,14 +277,30 @@
                 ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
                 ctx.fill();
 
+                // 選択時の強調表示
+                if (this.isSelected) {
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius + 8, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+
                 // レンジ表示
-                if (this.cooldown > 0) {
-                    ctx.strokeStyle = 'rgba(243, 156, 18, 0.3)';
+                if (this.isSelected || this.cooldown > 0.15) {
+                    ctx.strokeStyle = 'rgba(243, 156, 18, 0.2)';
                     ctx.lineWidth = 1;
                     ctx.beginPath();
                     ctx.arc(this.x, this.y, this.range, 0, Math.PI * 2);
                     ctx.stroke();
                 }
+
+                // レベル表示
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 12px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.level, this.x, this.y);
             }
         }
 
@@ -274,12 +309,18 @@
             constructor(wave) {
                 this.x = Math.random() * (canvas.width - 40) + 20;
                 this.y = -30;
-                this.vx = (Math.random() - 0.5) * 2;
-                this.vy = 1 + wave * 0.3;
-                this.radius = 12;
-                this.hp = 30 + wave * 10;
+                this.vx = (Math.random() - 0.5) * 2.5;
+                this.vy = 1.5 + wave * 0.4;
+                this.radius = 12 + Math.floor(wave / 3);
+                this.hp = 40 + wave * 15;
                 this.maxHp = this.hp;
-                this.color = '#e74c3c';
+                this.type = Math.random() > 0.7 ? 'tough' : 'normal';
+                if (this.type === 'tough') {
+                    this.hp *= 1.5;
+                    this.maxHp = this.hp;
+                    this.radius += 3;
+                }
+                this.color = this.type === 'tough' ? '#c0392b' : '#e74c3c';
             }
 
             update() {
@@ -397,20 +438,68 @@
             placeTower(x, y);
         });
 
+        canvas.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            if (gameState.gameOver || gameState.isPaused) return;
+            let rect = canvas.getBoundingClientRect();
+            let x = (e.clientX - rect.left) * (canvas.width / rect.width);
+            let y = (e.clientY - rect.top) * (canvas.height / rect.height);
+            upgradeTower(x, y);
+        });
+
+        let touchStartTime = 0;
+        let touchStartX = 0;
+        let touchStartY = 0;
+
         canvas.addEventListener('touchstart', (e) => {
             if (gameState.gameOver || gameState.isPaused) return;
             e.preventDefault();
+            touchStartTime = Date.now();
             let rect = canvas.getBoundingClientRect();
             let touch = e.touches[0];
-            let x = (touch.clientX - rect.left) * (canvas.width / rect.width);
-            let y = (touch.clientY - rect.top) * (canvas.height / rect.height);
-            placeTower(x, y);
+            touchStartX = (touch.clientX - rect.left) * (canvas.width / rect.width);
+            touchStartY = (touch.clientY - rect.top) * (canvas.height / rect.height);
+        });
+
+        canvas.addEventListener('touchend', (e) => {
+            if (gameState.gameOver || gameState.isPaused) return;
+            let touchDuration = Date.now() - touchStartTime;
+            if (touchDuration > 500) {
+                upgradeTower(touchStartX, touchStartY);
+            } else {
+                placeTower(touchStartX, touchStartY);
+            }
         });
 
         function placeTower(x, y) {
+            // 既存のタレットをクリアしたかチェック
+            gameState.selectedTower = null;
+            for (let tower of towers) {
+                tower.isSelected = false;
+                let dist = Math.hypot(tower.x - x, tower.y - y);
+                if (dist < tower.radius + 10) {
+                    tower.isSelected = true;
+                    gameState.selectedTower = tower;
+                    return;
+                }
+            }
+
             if (gameState.money >= TOWER_COST) {
-                towers.push(new Tower(x, y));
+                let newTower = new Tower(x, y);
+                towers.push(newTower);
                 gameState.money -= TOWER_COST;
+                newTower.isSelected = true;
+                gameState.selectedTower = newTower;
+            }
+        }
+
+        function upgradeTower(x, y) {
+            for (let tower of towers) {
+                let dist = Math.hypot(tower.x - x, tower.y - y);
+                if (dist < tower.radius + 15) {
+                    tower.upgrade();
+                    return;
+                }
             }
         }
 
@@ -425,18 +514,26 @@
 
         // 敵の波
         let waveTimer = 0;
-        let waveEnemyCount = 3;
+        let waveEnemyCount = 5;
         let waveEnemySpawned = 0;
+        let spawnDelay = 60;
+        let spawnCounter = 0;
 
         function spawnWave() {
-            if (waveEnemySpawned < waveEnemyCount) {
-                enemies.push(new Enemy(gameState.wave));
-                waveEnemySpawned++;
-            } else if (enemies.length === 0) {
-                gameState.wave++;
-                waveEnemyCount = Math.floor(3 + gameState.wave * 1.5);
-                waveEnemySpawned = 0;
-                gameState.money += 30;
+            spawnCounter++;
+            if (spawnCounter >= spawnDelay) {
+                if (waveEnemySpawned < waveEnemyCount) {
+                    enemies.push(new Enemy(gameState.wave));
+                    waveEnemySpawned++;
+                    spawnCounter = 0;
+                } else if (enemies.length === 0) {
+                    gameState.wave++;
+                    waveEnemyCount = Math.floor(5 + gameState.wave * 2);
+                    spawnDelay = Math.max(20, 60 - gameState.wave * 3);
+                    waveEnemySpawned = 0;
+                    spawnCounter = 0;
+                    gameState.money += 40;
+                }
             }
         }
 
@@ -462,7 +559,8 @@
 
                 // 敵が基地に到達
                 if (enemies[i].y > canvas.height - 60) {
-                    gameState.hp -= 10;
+                    let damage = enemies[i].type === 'tough' ? 15 : 10;
+                    gameState.hp -= damage;
                     enemies.splice(i, 1);
                 } else if (enemies[i].hp <= 0) {
                     gameState.score += 10;
@@ -568,6 +666,22 @@
             ctx.font = 'bold 16px Arial';
             ctx.textAlign = 'left';
             ctx.fillText(`💰 ${gameState.money}`, 10, 30);
+
+            // 選択タレット情報表示
+            if (gameState.selectedTower) {
+                ctx.fillStyle = 'rgba(44, 62, 80, 0.9)';
+                ctx.fillRect(10, 50, 150, 80);
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'left';
+                ctx.fillText(`Lv.${gameState.selectedTower.level}`, 20, 70);
+                ctx.font = '12px Arial';
+                ctx.fillText(`火力: ${gameState.selectedTower.damage.toFixed(0)}`, 20, 85);
+                ctx.fillText(`範囲: ${gameState.selectedTower.range.toFixed(0)}`, 20, 100);
+                ctx.fillStyle = '#27ae60';
+                ctx.font = 'bold 12px Arial';
+                ctx.fillText(`UP: ${TOWER_UPGRADE_COST}円`, 20, 120);
+            }
 
             // ポーズ表示
             if (gameState.isPaused) {
