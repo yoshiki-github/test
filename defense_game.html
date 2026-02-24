@@ -513,7 +513,6 @@
         });
 
         // 敵の波
-        let waveTimer = 0;
         let waveEnemyCount = 5;
         let waveEnemySpawned = 0;
         let spawnDelay = 60;
@@ -542,11 +541,7 @@
             if (gameState.isPaused) return;
 
             // 敵のスポーン
-            waveTimer++;
-            if (waveTimer > 120) {
-                spawnWave();
-                waveTimer = 0;
-            }
+            spawnWave();
 
             // タレットの更新
             for (let tower of towers) {
